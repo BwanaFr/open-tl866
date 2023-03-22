@@ -33,6 +33,7 @@ target_sources(core INTERFACE
     ${CMAKE_SOURCE_DIR}/io.c
     ${CMAKE_SOURCE_DIR}/stock_compat.c
     ${CMAKE_SOURCE_DIR}/usb/usb_descriptors.c
+    ${CMAKE_SOURCE_DIR}/dram_tester.c
 )
 
 # On Windows, xc8 can't find io.h, and _only_ io.h, without this path added. Compiler bug?
@@ -92,4 +93,8 @@ add_tl866_mode(tl866-epromv
 
 add_tl866_mode(tl866-mcs48
     ${CMAKE_SOURCE_DIR}/modes/mcs48/main.c
+)
+
+add_tl866_mode(tl866-dram_tester
+    ${CMAKE_SOURCE_DIR}/modes/dram_tester/main.c
 )
