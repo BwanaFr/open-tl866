@@ -55,10 +55,10 @@ void dram_tester_reset(void)
 }
 
 
-void timer_start(uint16_t timeout_milliseconds)
+void timer_start(uint16_t timeout_microseconds)
 {
 	uint16_t timeout = OSCILLATOR_HZ / 4 /
-	                             256 / 1000 * timeout_milliseconds;
+	                             256 / timeout_microseconds;
 
 	/* Timer sets TMR0IF at overflow, so TMR0 needs to be set to the
 	 * number of ticks _before_ overflow. */

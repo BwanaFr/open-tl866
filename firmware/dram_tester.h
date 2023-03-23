@@ -15,9 +15,30 @@
 // Disable all voltage rails
 void dram_tester_reset(void);
 
+/* Configure ZIF socket for 41256 and 4164 DRAM */
+void dram_41_256_64_setup(void);
+
+/* Sets address on bus for 41256 and 4164 devices */
+void dram_41_256_64_address(uint16_t address);
+
+/* Set the /CAS output for 41256 and 4164 devices */
+void dram_41_256_64_cas(bool level);
+
+/* Set the /RAS output for 41256 and 4164 devices */
+void dram_41_256_64_ras(bool level);
+
+/* Set the /WE output for 41256 and 4164 devices */
+void dram_41_256_64_we(bool level);
+
+/* Sets the Din pin for 41256 and 4164 devices */
+void dram_41_256_64_out(bool dout);
+
+/* Reads the Dout pin for 41256 and 4164 devices */
+bool dram_41_256_64_in(void);
+
 
 /* Starts a timer (0) */
-void timer_start(uint16_t timeout_milliseconds);
+void timer_start(uint16_t timeout_microseconds);
 
 /* Return true if the timer has expired or false if it has not */
 bool timer_expired(void);
