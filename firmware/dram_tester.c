@@ -54,6 +54,132 @@ void dram_tester_reset(void)
     }
 }
 
+/* Configure ZIF socket for 41256 and 4164 DRAM */
+void dram_41_256_64_setup(void)
+{
+    //Disable pullup/pulldown
+    pupd(1, 0);
+    //Sets direction
+    zif_bits_t dir = {  0b01111111,     // Pin 1 to 8 : A8, Din, /WRITE, /RAS, A0, A2, A1, VCC
+                        0b00000000,     // Not used (ZIF 9-16)
+                        0b00000000,     // Not used (ZIF 17-25)
+                        0b00000000,     // Not used (ZIF 25-32)
+                        0b01011111};    // Pin 33 to 40: A7, A5, A4, A3, A6, Dout, /CAS, Vss
+    dir_write(dir);
+    //Sets VDD
+    zif_bits_t vdd = {  0b10000000, // Pin 1 to 8 : A8, Din, /WRITE, /RAS, A0, A2, A1, VCC
+                    0b00000000,     // Not used (ZIF 9-16)
+                    0b00000000,     // Not used (ZIF 17-25)
+                    0b00000000,     // Not used (ZIF 25-32)
+                    0b00000000};    // Pin 33 to 40: A7, A5, A4, A3, A6, Dout, /CAS, Vss
+    set_vdd(vdd);
+    //Sets GND
+    zif_bits_t gnd = {  0b00000000, // Pin 1 to 8 : A8, Din, /WRITE, /RAS, A0, A2, A1, VCC
+                    0b00000000,     // Not used (ZIF 9-16)
+                    0b00000000,     // Not used (ZIF 17-25)
+                    0b00000000,     // Not used (ZIF 25-32)
+                    0b10000000};    // Pin 33 to 40: A7, A5, A4, A3, A6, Dout, /CAS, Vss
+    set_gnd(gnd);
+    
+    // Set voltages
+    vdd_val(VDD_51); // 5.0 v - 5.2 v
+    vdd_en();
+    vpp_dis();
+    //Configuration done    
+}
+
+void dram_41_256_64_address(uint16_t address)
+{
+    zif_bits_t val;
+    zif_read(val);
+    val[0] &= 0b00001110;   //Mask A8, A0, A2, A1 (and VCC) pins
+    val[4] &= 0b01000000;   //Mask A7, A5, A3, A6 (and Vss) pins
+    //Sets address bits
+    //A8
+    val[0] |= ((address >> 8) & 0x1);
+    //A0 (bit 4 on ZIF)
+    val[0] |= (((address >> 5) & 0x1)) >> 4;
+    //A2 (bit 5 on ZIF)
+    val[0] |= (((address >> 2) & 0x1)) >> 5;
+    //A1 (bit 6 on ZIF)
+    val[0] |= (((address >> 1) & 0x1)) >> 6;
+    //A7 (bit 0 on ZIF)
+    val[4] |= (((address >> 7) & 0x1));
+    //A5 (bit 1 on ZIF)
+    val[4] |= (((address >> 5) & 0x1)) >> 1;
+    //A4 (bit 2 on ZIF)
+    val[4] |= (((address >> 4) & 0x1)) >> 2;
+    //A3 (bit 3 on ZIF)
+    val[4] |= (((address >> 3) & 0x1)) >> 3;
+    //A6 (bit 4 on ZIF)
+    val[4] |= (((address >> 6) & 0x1)) >> 4;
+
+    //Write to ZIF
+    zif_write(val);
+}
+
+void dram_41_256_64_cas(bool level)
+{
+    zif_bits_t val;
+    zif_read(val);
+    if(level){
+        //Sets bit
+        val[4] |= 0b01000000;
+    }else{
+        //Reset bit
+        val[4] &= 0b10111111;
+    }
+    zif_write(val);
+}
+
+void dram_41_256_64_ras(bool level)
+{
+    zif_bits_t val;
+    zif_read(val);
+    if(level){
+        //Sets bit
+        val[0] |= 0b00001000;
+    }else{
+        //Reset bit
+        val[0] &= 0b11110111;
+    }
+    zif_write(val);
+}
+
+void dram_41_256_64_we(bool level)
+{
+    zif_bits_t val;
+    zif_read(val);
+    if(level){
+        //Sets bit
+        val[0] |= 0b00000100;
+    }else{
+        //Reset bit
+        val[0] &= 0b11111011;
+    }
+    zif_write(val);
+}
+
+void dram_41_256_64_out(bool dout)
+{
+    zif_bits_t val;
+    zif_read(val);
+    if(level){
+        //Sets bit
+        val[0] |= 0b00000010;
+    }else{
+        //Reset bit
+        val[0] &= 0b11111101;
+    }
+    zif_write(val);
+}
+
+bool dram_41_256_64_in(void)
+{
+    zif_bits_t val;
+    zif_read(val);
+    return ((val[4] >> 5) & 0x1);   //WE at ZIF 38
+}
 
 void timer_start(uint16_t timeout_microseconds)
 {
