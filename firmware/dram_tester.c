@@ -85,7 +85,20 @@ void dram_41_256_64_setup(void)
     vdd_val(VDD_51); // 5.0 v - 5.2 v
     vdd_en();
     vpp_dis();
-    //Configuration done    
+    
+    //Begin initialization of chip
+    _delay_us(300);
+    dram_41_256_64_cas(true);
+    dram_41_256_64_ras(true);
+    //Cycle /RAS eight times
+    for(int i=0;i<8;++i){
+        _delay_us(150);
+        dram_41_256_64_ras(false);
+        _delay_us(150);
+        dram_41_256_64_ras(true);
+    }
+
+    //Configuration/initialization done    
 }
 
 void dram_41_256_64_address(uint16_t address)
@@ -164,7 +177,7 @@ void dram_41_256_64_out(bool dout)
 {
     zif_bits_t val;
     zif_read(val);
-    if(level){
+    if(dout){
         //Sets bit
         val[0] |= 0b00000010;
     }else{
@@ -180,6 +193,29 @@ bool dram_41_256_64_in(void)
     zif_read(val);
     return ((val[4] >> 5) & 0x1);   //WE at ZIF 38
 }
+
+
+void dram_41_256_64_early_write(uint16_t address, bool value, uint16_t addrLen)
+{
+    uint16_t col = (address >> addrLen) & ((1<<addrLen)-1);
+    uint16_t row = address & ((1<<addrLen)-1);
+    dram_41_256_64_address(row);
+    dram_41_256_64_ras(0);
+    NOP();  //tRAH
+    dram_41_256_64_we(0);
+    dram_41_256_64_address(col);
+    dram_41_256_64_cas(0);
+    NOP();  //tCAS
+    dram_41_256_64_cas(1);
+    dram_41_256_64_ras(1);
+    NOP();  //tRP
+}
+
+void dram_41_256_early_write(uint16_t address, bool value)
+{
+    dram_41_256_64_early_write(address, value, 9);
+}
+
 
 void timer_start(uint16_t timeout_microseconds)
 {

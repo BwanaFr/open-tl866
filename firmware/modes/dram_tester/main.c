@@ -55,13 +55,16 @@ static void test_41256(void)
     com_println("41256 DRAM test");
     com_println("Make sure to insert proper chip");
     prompt_enter();
-    LED = 1;
-    for(int i=0;i<30;++i){
-        timer_start(1000);
-        while(!timer_expired()){}
-        LED = !LED;
+    //Chip is inserted, setup ZIF and initialize chip
+    dram_41_256_64_setup();
+    uint32_t address = 0;
+    com_println("Filling 0s");
+    for(address=0;address < (1<<18); address++){
+        dram_41_256_early_write(address, 0);
     }
 
+
+    dram_tester_reset();
     prompt_enter();
 }
 
