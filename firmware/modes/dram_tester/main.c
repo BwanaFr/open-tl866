@@ -58,8 +58,9 @@ static void test_41256(void)
     //Chip is inserted, setup ZIF and initialize chip
     dram_41_256_64_setup();
     uint32_t address = 0;
+    const uint32_t mem_size = (1<<18);
     com_println("Filling 0s");
-    for(address=0;address < (1<<18); address++){
+    for(address=0;address < memsize; address++){
         dram_41_256_early_write(address, 0);
     }
 

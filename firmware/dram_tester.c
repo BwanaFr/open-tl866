@@ -87,14 +87,14 @@ void dram_41_256_64_setup(void)
     vpp_dis();
     
     //Begin initialization of chip
-    _delay_us(300);
+    __delay_us(300);
     dram_41_256_64_cas(true);
     dram_41_256_64_ras(true);
     //Cycle /RAS eight times
     for(int i=0;i<8;++i){
-        _delay_us(150);
+        __delay_us(150);
         dram_41_256_64_ras(false);
-        _delay_us(150);
+        __delay_us(150);
         dram_41_256_64_ras(true);
     }
 
