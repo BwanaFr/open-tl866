@@ -295,8 +295,8 @@ bool dram_41_256_64_in(void)
 
 void dram_41_256_64_early_write(uint32_t address, bool value, uint16_t addrLen)
 {
-    uint16_t col = (address >> addrLen) & ((1<<addrLen)-1);
-    uint16_t row = address & ((1<<addrLen)-1);
+    uint16_t row = (address >> addrLen) & ((1<<addrLen)-1);
+    uint16_t col = address & ((1<<addrLen)-1);
     dram_41_256_64_address(row);
     dram_41_256_64_ras(0);
     dram_41_256_64_we(0);
@@ -316,8 +316,8 @@ void dram_41_256_early_write(uint32_t address, bool value)
 bool dram_41_256_64_read(uint32_t address, uint16_t addrLen)
 {
     bool ret = false;
-    uint16_t col = (address >> addrLen) & ((1<<addrLen)-1);
-    uint16_t row = address & ((1<<addrLen)-1);
+    uint16_t row = (address >> addrLen) & ((1<<addrLen)-1);
+    uint16_t col = address & ((1<<addrLen)-1);
     dram_41_256_64_address(row);
     dram_41_256_64_ras(0);
     dram_41_256_64_we(1);
@@ -329,28 +329,34 @@ bool dram_41_256_64_read(uint32_t address, uint16_t addrLen)
     return ret;
 }
 
-/* Performs an read cycle */
 bool dram_41_256_read(uint32_t address)
 {
     return dram_41_256_64_read(address, 9);
 }
 
 
+void dram_41_256_64_ras_only_refresh(uint16_t row)
+{
+    dram_41_256_64_address(row);
+    dram_41_256_64_ras(0);
+    dram_41_256_64_ras(1);
+}
+
 void timer_start(uint16_t timeout_microseconds)
 {
-	uint16_t timeout = OSCILLATOR_HZ / 4 /
-	                             256 / timeout_microseconds;
+	uint16_t timeout = OSCILLATOR_HZ / 4 / 1000000
+	                              * timeout_microseconds;
 
 	/* Timer sets TMR0IF at overflow, so TMR0 needs to be set to the
 	 * number of ticks _before_ overflow. */
 	timeout = 65535 - timeout + 1;
-
+    INTCONbits.TMR0IE = 0;
 	INTCONbits.TMR0IF = 0; /* Turn off the interrupt flag */
 	T0CONbits.TMR0ON = 0;  /* 0 = timer off */
 	T0CONbits.T08BIT = 0;  /* 0 = 16-bit timer */
 	T0CONbits.T0CS = 0;    /* clock select: 0 = Fosc/4 */
-	T0CONbits.PSA = 0;     /* 0 = use prescaler */
-	T0CONbits.T0PS= 7;     /* 7 = 1:256 prescaler */
+	T0CONbits.PSA = 1;     /* 1 = don't use prescaler */
+	T0CONbits.T0PS= 0;     /* 0 = 1:2 prescaler */
 	TMR0H = timeout >> 8 & 0xff;
 	TMR0L = timeout & 0xff;
 	T0CONbits.TMR0ON = 1;  /* timer on */

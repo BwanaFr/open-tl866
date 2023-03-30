@@ -27,6 +27,113 @@ static void prompt_enter(void)
     prompt_msg("Press enter to continue");
 }
 
+static void display_address_error(uint32_t startAddr, uint32_t endAddr){
+    if(startAddr == endAddr){
+        printf("Error at address 0x%lx\n", startAddr);
+    }else{
+        printf("Error at address 0x%lx-0x%lx (%lu bytes)\n", startAddr, endAddr, (endAddr+1-startAddr));
+    }
+}
+
+static bool test_41256_refresh()
+{
+    const uint16_t rows = (1<<9);
+    const uint32_t mem_size = (1ul<<18);
+    const uint16_t refreshTime = 150;   //150us, like in IBM PC. Well in fact we are slower (~190us)
+    const uint32_t retentionTime = 5;   //Retention time in seconds
+    uint32_t address = 0;
+    uint16_t refreshedRow = 0;
+    uint32_t failedStartAddress = 0;
+    bool testFailed = false;
+    bool prevFailed = false;
+    printf("Refresh test - Writing 1\n");
+
+    uint16_t timeout = _XTAL_FREQ / 4 / 1000000
+	                              * refreshTime;
+
+
+    timer_start(refreshTime);
+    for(address=0;address < mem_size; address++){
+        dram_41_256_early_write(address, 1);
+        if(timer_expired()){
+            //Time to refresh
+            dram_41_256_64_ras_only_refresh(++refreshedRow);
+            timer_start(refreshTime);
+            if(refreshedRow>=rows){
+                refreshedRow = 0;
+            }
+        }
+    }
+
+    printf("Refresh test - Only refresh\n");
+    for(uint32_t i=0;i<((retentionTime*1000*1000)/refreshTime);){
+        if(timer_expired()){
+            //Time to refresh
+            dram_41_256_64_ras_only_refresh(++refreshedRow);
+            timer_start(refreshTime);
+            if(refreshedRow>=rows){
+                refreshedRow = 0;
+            }
+            ++i;
+        }
+    }
+
+    printf("Refresh test - Checking 1\n");
+    for(address=0;address < mem_size; address++){
+        if(dram_41_256_read(address) != 1){
+            if(!prevFailed){
+                failedStartAddress = address;
+            }
+            prevFailed = true;
+            testFailed = true;
+        }else{
+            if(prevFailed){
+                display_address_error(failedStartAddress, (address-1));
+            }
+            prevFailed = false;
+        }
+        if(timer_expired()){
+            dram_41_256_64_ras_only_refresh(++refreshedRow);
+            timer_start(refreshTime);
+            if(refreshedRow>=rows){
+                refreshedRow = 0;
+            }
+        }
+    }
+    if(prevFailed){
+        display_address_error(failedStartAddress, (address-1));
+    }
+    return testFailed;
+}
+
+
+static bool test_41256_value(bool value)
+{
+    uint32_t address = 0;
+    uint32_t failedStartAddress = 0;
+    bool testFailed = false;
+    bool prevFailed = false;
+    const uint32_t mem_size = (1ul<<18);
+    printf("Checking %us\n", value);
+
+    for(address=0;address < mem_size; address++){
+        dram_41_256_early_write(address, value);
+        if(dram_41_256_read(address) != value){
+            if(!prevFailed){
+                failedStartAddress = address;
+            }
+            prevFailed = true;
+            testFailed = true;
+        }else{
+            if(prevFailed){
+                display_address_error(failedStartAddress, (address-1));
+            }
+            prevFailed = false;
+        }
+    }
+    return testFailed;
+}
+
 /**
     Test of 41256 (1x256k) DRAM
     DIP chip pinout:
@@ -58,26 +165,9 @@ static void test_41256(void)
     prompt_enter();
     //Chip is inserted, setup ZIF and initialize chip
     dram_41_256_64_setup();
-    uint32_t address = 0;
-    const uint32_t mem_size = (1ul<<18);
-    printf("Checking 0s\n");
-    for(address=0;address < mem_size; address++){
-        dram_41_256_early_write(address, 0);
-        if(dram_41_256_read(address) != 0){
-            printf("Error at address 0x%x (expecting 0)\n", address);
-            testFailed = true;
-        }
-    }
-
-    printf("Checking 1s\n");
-    for(address=0;address < mem_size; address++){
-        dram_41_256_early_write(address, 1);
-        if(dram_41_256_read(address) != 1){
-            printf("Error at address 0x%x (expecting 1)\n", address);
-            testFailed = true;
-        }
-    }
-
+    testFailed = test_41256_value(0);
+    testFailed |= test_41256_value(1);
+    testFailed |= test_41256_refresh();
     dram_tester_reset();
     if(testFailed){
         printf("Error detected!\n");

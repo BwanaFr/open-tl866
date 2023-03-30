@@ -42,6 +42,9 @@ void dram_41_256_early_write(uint32_t address, bool value);
 /* Performs an read cycle */
 bool dram_41_256_read(uint32_t address);
 
+/* Performs /RAS-only refresh of specified row*/
+void dram_41_256_64_ras_only_refresh(uint16_t row);
+
 /* Starts a timer (0) */
 void timer_start(uint16_t timeout_microseconds);
 

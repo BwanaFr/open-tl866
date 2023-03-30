@@ -5,6 +5,10 @@
 int echo = 1;
 unsigned comblib_drops = 0;
 
+#define PUTCH_BUFFER_SIZE 256
+char putch_buffer[PUTCH_BUFFER_SIZE];
+unsigned putch_buffer_pos = 0;
+
 inline void enable_echo()
 {
     echo = 1;
@@ -97,7 +101,7 @@ unsigned char *com_readline()
             }
 
             if (echo) {
-                printf(out_buf);
+                send_string_sync(COM_ENDPOINT, out_buf);
 
                 // Temporary workaround buffer printing out previous char of
                 // previous input characters after a certain length.
@@ -139,17 +143,20 @@ void com_println(const char *str)
 // used by printf type functions
 void putch(const unsigned char c)
 {
-    // TODO: Make a buffer and flush function to avoid sending one character
-    // per USB packet.
-    send_char_sync(COM_ENDPOINT, c);
+    putch_buffer[putch_buffer_pos++] = (char)c;
+    if(((char)c) == '\n' || (putch_buffer_pos>=(PUTCH_BUFFER_SIZE-1))){
+        putch_buffer[putch_buffer_pos] = '\0';
+        send_string_sync(COM_ENDPOINT, putch_buffer);
+        putch_buffer_pos = 0;
+    }
 }
 
 char *com_cmd_prompt(void)
 {
     char *cmd;
 
-    printf("CMD> ");
+    com_print("CMD> ");
     cmd = com_readline();
-    com_println("");
+    com_print("\r\n");
     return cmd;
 }
