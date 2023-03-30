@@ -1,6 +1,6 @@
 // DRAM tester
 
-
+#include "../../system.h"
 #include "../../comlib.h"
 #include "../../mode.h"
 #include "../../stock_compat.h"
@@ -52,19 +52,38 @@ static void prompt_enter(void)
 **/
 static void test_41256(void)
 {
+    bool testFailed = false;
     com_println("41256 DRAM test");
     com_println("Make sure to insert proper chip");
     prompt_enter();
     //Chip is inserted, setup ZIF and initialize chip
     dram_41_256_64_setup();
     uint32_t address = 0;
-    com_println("Filling 0s");
-    for(address=0;address < (1<<18); address++){
+    const uint32_t mem_size = (1ul<<18);
+    printf("Checking 0s\n");
+    for(address=0;address < mem_size; address++){
         dram_41_256_early_write(address, 0);
+        if(dram_41_256_read(address) != 0){
+            printf("Error at address 0x%x (expecting 0)\n", address);
+            testFailed = true;
+        }
     }
 
+    printf("Checking 1s\n");
+    for(address=0;address < mem_size; address++){
+        dram_41_256_early_write(address, 1);
+        if(dram_41_256_read(address) != 1){
+            printf("Error at address 0x%x (expecting 1)\n", address);
+            testFailed = true;
+        }
+    }
 
     dram_tester_reset();
+    if(testFailed){
+        printf("Error detected!\n");
+    }else{
+        printf("Test succeded!\n");
+    }
     prompt_enter();
 }
 

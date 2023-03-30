@@ -36,8 +36,11 @@ void dram_41_256_64_out(bool dout);
 /* Reads the Dout pin for 41256 and 4164 devices */
 bool dram_41_256_64_in(void);
 
-/* Performs an early write */
-void dram_41_256_early_write(uint16_t address, bool value);
+/* Performs an early write cycle */
+void dram_41_256_early_write(uint32_t address, bool value);
+
+/* Performs an read cycle */
+bool dram_41_256_read(uint32_t address);
 
 /* Starts a timer (0) */
 void timer_start(uint16_t timeout_microseconds);
