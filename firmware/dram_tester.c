@@ -1,6 +1,5 @@
 #include <xc.h>
 
-
 #include "system.h"
 #include "comlib.h"
 #include "dram_tester.h"
@@ -292,7 +291,6 @@ bool dram_41_256_64_in(void)
 #endif
 }
 
-
 void dram_41_256_64_early_write(uint32_t address, bool value, uint16_t addrLen)
 {
     uint16_t row = (address >> addrLen) & ((1<<addrLen)-1);
@@ -306,12 +304,6 @@ void dram_41_256_64_early_write(uint32_t address, bool value, uint16_t addrLen)
     dram_41_256_64_cas(1);
     dram_41_256_64_ras(1);    
 }
-
-void dram_41_256_early_write(uint32_t address, bool value)
-{
-    dram_41_256_64_early_write(address, value, 9);
-}
-
 
 bool dram_41_256_64_read(uint32_t address, uint16_t addrLen)
 {
@@ -328,12 +320,6 @@ bool dram_41_256_64_read(uint32_t address, uint16_t addrLen)
     dram_41_256_64_ras(1);
     return ret;
 }
-
-bool dram_41_256_read(uint32_t address)
-{
-    return dram_41_256_64_read(address, 9);
-}
-
 
 void dram_41_256_64_ras_only_refresh(uint16_t row)
 {

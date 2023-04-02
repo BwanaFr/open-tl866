@@ -8,12 +8,27 @@
 #include "dram_tester.h"
 
 int main_debug = 0;
+bool stop_first_error = true;
 
 static inline void print_help(void)
 {
     com_println("open-tl866 (dram_tester)");
     com_println("0      41256 (1x256k) test");
+    com_println("1      4164 (1x64k) test");
+    com_println("o      show options");
     com_println("b      reset to bootloader");
+}
+
+static inline void print_options(void)
+{
+    if(stop_first_error){
+        com_println("1      *stop on first error");
+        com_println("2      don't stop on first error");
+    }else{
+        com_println("1      stop on first error");
+        com_println("2      *don't stop on first error");
+    }
+
 }
 
 static void prompt_msg(const char *msg)
@@ -27,6 +42,28 @@ static void prompt_enter(void)
     prompt_msg("Press enter to continue");
 }
 
+static void show_options(void)
+{
+    while(1){
+        print_options();
+        unsigned char *cmd_t = strtok(com_cmd_prompt(), " ");
+        if (cmd_t == NULL) {
+            return;
+        }
+        switch (cmd_t[0]) {
+        case '1':
+            stop_first_error = true;
+            break;
+        case '2':
+            stop_first_error = false;
+            break;
+        default:
+            printf("ERROR: unknown command 0x%02X (%c)\r\n", cmd_t[0], cmd_t[0]);
+            return;
+        }
+    }
+}
+
 static void display_address_error(uint32_t startAddr, uint32_t endAddr){
     if(startAddr == endAddr){
         printf("Error at address 0x%lx\n", startAddr);
@@ -35,10 +72,10 @@ static void display_address_error(uint32_t startAddr, uint32_t endAddr){
     }
 }
 
-static bool test_41256_refresh()
+static bool test_41_256_64_refresh(uint16_t addrLen)
 {
-    const uint16_t rows = (1<<9);
-    const uint32_t mem_size = (1ul<<18);
+    const uint16_t rows = (1<<addrLen);
+    const uint32_t mem_size = (1ul<<(addrLen*2));
     const uint16_t refreshTime = 150;   //150us, like in IBM PC. Well in fact we are slower (~190us)
     const uint32_t retentionTime = 5;   //Retention time in seconds
     uint32_t address = 0;
@@ -48,13 +85,9 @@ static bool test_41256_refresh()
     bool prevFailed = false;
     printf("Refresh test - Writing 1\n");
 
-    uint16_t timeout = _XTAL_FREQ / 4 / 1000000
-	                              * refreshTime;
-
-
     timer_start(refreshTime);
     for(address=0;address < mem_size; address++){
-        dram_41_256_early_write(address, 1);
+        dram_41_256_64_early_write(address, 1, addrLen);
         if(timer_expired()){
             //Time to refresh
             dram_41_256_64_ras_only_refresh(++refreshedRow);
@@ -80,12 +113,16 @@ static bool test_41256_refresh()
 
     printf("Refresh test - Checking 1\n");
     for(address=0;address < mem_size; address++){
-        if(dram_41_256_read(address) != 1){
+        if(dram_41_256_64_read(address, addrLen) != 1){
             if(!prevFailed){
                 failedStartAddress = address;
             }
             prevFailed = true;
             testFailed = true;
+            if(stop_first_error){
+                ++address;
+                break;
+            }
         }else{
             if(prevFailed){
                 display_address_error(failedStartAddress, (address-1));
@@ -100,6 +137,7 @@ static bool test_41256_refresh()
             }
         }
     }
+
     if(prevFailed){
         display_address_error(failedStartAddress, (address-1));
     }
@@ -107,23 +145,27 @@ static bool test_41256_refresh()
 }
 
 
-static bool test_41256_value(bool value)
+static bool test_41_256_64_value(bool value, uint16_t addrLen)
 {
     uint32_t address = 0;
     uint32_t failedStartAddress = 0;
     bool testFailed = false;
     bool prevFailed = false;
-    const uint32_t mem_size = (1ul<<18);
+    const uint32_t mem_size = (1ul<<(addrLen*2));
     printf("Checking %us\n", value);
 
     for(address=0;address < mem_size; address++){
-        dram_41_256_early_write(address, value);
-        if(dram_41_256_read(address) != value){
+        dram_41_256_64_early_write(address, value, addrLen);
+        if(dram_41_256_64_read(address, addrLen) != value){
             if(!prevFailed){
                 failedStartAddress = address;
             }
             prevFailed = true;
             testFailed = true;
+            if(stop_first_error){
+                ++address;
+                break;
+            }
         }else{
             if(prevFailed){
                 display_address_error(failedStartAddress, (address-1));
@@ -131,15 +173,19 @@ static bool test_41256_value(bool value)
             prevFailed = false;
         }
     }
+
+    if(prevFailed){
+        display_address_error(failedStartAddress, (address-1));
+    }
     return testFailed;
 }
 
 /**
-    Test of 41256 (1x256k) DRAM
+    Test of 41256 (1x256k) DRAM or 4164 (1x64k) DRAM
     DIP chip pinout:
     CHIP    ZIF     FUNC            DIR (TL866 side)
     PIN     PIN
-    1       1       A8              OUT
+    1       1       A8              OUT (Not used on 4164)
     2       2       D (Data in)     OUT
     3       3       /W              OUT
     4       4       /RAS            OUT
@@ -157,17 +203,20 @@ static bool test_41256_value(bool value)
     16      40      VSS             VSS (GND)
 
 **/
-static void test_41256(void)
+static void test_41_256_16(uint16_t addrLen)
 {
     bool testFailed = false;
-    com_println("41256 DRAM test");
     com_println("Make sure to insert proper chip");
     prompt_enter();
     //Chip is inserted, setup ZIF and initialize chip
     dram_41_256_64_setup();
-    testFailed = test_41256_value(0);
-    testFailed |= test_41256_value(1);
-    testFailed |= test_41256_refresh();
+    testFailed = test_41_256_64_value(0, addrLen);
+    if(!stop_first_error || !testFailed){
+        testFailed |= test_41_256_64_value(1, addrLen);
+    }
+    if(!stop_first_error || !testFailed){
+        testFailed |= test_41_256_64_refresh(addrLen);
+    }
     dram_tester_reset();
     if(testFailed){
         printf("Error detected!\n");
@@ -189,9 +238,16 @@ static inline void eval_command(unsigned char *cmd)
     dram_tester_reset();
     switch (cmd_t[0]) {
     case '0':
-        test_41256();
+        com_println("41256 DRAM test");
+        test_41_256_16(9);
         break;
-
+    case '1':
+        com_println("4164 DRAM test");
+        test_41_256_16(7);
+        break;
+    case 'o':
+    case 'O':
+        show_options();
     case '?':
     case 'h':
         print_help();

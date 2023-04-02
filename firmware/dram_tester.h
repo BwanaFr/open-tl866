@@ -1,6 +1,7 @@
 /*
     DRAM tester mode for testing vintage DRAM chips:
     - 41256 : 1x256k DRAM
+    - 4164 : 1x64k DRAM
 
 */
 
@@ -37,10 +38,10 @@ void dram_41_256_64_out(bool dout);
 bool dram_41_256_64_in(void);
 
 /* Performs an early write cycle */
-void dram_41_256_early_write(uint32_t address, bool value);
+void dram_41_256_64_early_write(uint32_t address, bool value, uint16_t addrLen);
 
 /* Performs an read cycle */
-bool dram_41_256_read(uint32_t address);
+bool dram_41_256_64_read(uint32_t address, uint16_t addrLen);
 
 /* Performs /RAS-only refresh of specified row*/
 void dram_41_256_64_ras_only_refresh(uint16_t row);
